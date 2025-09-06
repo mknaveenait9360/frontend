@@ -3,9 +3,9 @@ import React, { useState } from "react";
 import { Container, TextField, Button, Typography, Box, IconButton, InputAdornment, CssBaseline } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { Poppins } from 'next/font/google';
-import toast, { Toaster } from 'react-hot-toast';
 
+import toast, { Toaster } from 'react-hot-toast';
+import { Poppins } from 'next/font/google';
 const poppins = Poppins({ weight: ['400','500','600','700'], subsets: ['latin'] });
 
 const theme = createTheme({
@@ -41,7 +41,7 @@ export default function LoginPage() {
         localStorage.setItem("token", data.access_token);
         toast.success("Login Successful!");
         setTimeout(() => {
-          window.location.href = "/products"; // Navigate to products page
+          window.location.href = "/products"; 
         }, 1000);
       } else {
         // Invalid credentials

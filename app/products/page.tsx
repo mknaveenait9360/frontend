@@ -1,196 +1,244 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import {
-  Container,
-  Typography,
-  Button,
-  TextField,
   Box,
-  FormControl,
-  InputLabel,
+  Button,
+  Container,
+  IconButton,
+  TextField,
+  Typography,
   Select,
   MenuItem,
-  IconButton,
+  InputLabel,
+  FormControl,
+  Paper,
+  CssBaseline
 } from '@mui/material';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import CloseIcon from '@mui/icons-material/Close';
+import { Poppins } from 'next/font/google';
+const poppins = Poppins({ weight: ['400','500','600','700'], subsets: ['latin'] });
+
+const theme = createTheme({
+  typography: {
+    fontFamily: `'${poppins.style.fontFamily}', sans-serif`,
+  },
+});
 
 interface Product {
   id: number;
   name: string;
   price: number;
   stock: number;
-  image?: string;
-  images?: string[];
+  images: string[];
 }
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
-  const [hasMounted, setHasMounted] = useState(false);
-  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 5 });
 
-  // Filters
-  const [filterType, setFilterType] = useState<'name' | 'price' | 'stock' | ''>('');
-  const [filterValue, setFilterValue] = useState('');
 
-  // Edit state
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editPrice, setEditPrice] = useState('');
-  const [editStock, setEditStock] = useState('');
-  const [editFiles, setEditFiles] = useState<File[]>([]);
+  const [name, setName] = useState('');
+  const [price, setPrice] = useState('');
+  const [stock, setStock] = useState('');
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
+  const [newImages, setNewImages] = useState<File[]>([]);
 
-  // Hydration-safe sessionStorage loading
+
+  const [activeFilter, setActiveFilter] = useState<'name' | 'price' | 'stock'>(() => {
+    if (typeof window !== 'undefined') {
+      return (sessionStorage.getItem('activeFilter') as 'name' | 'price' | 'stock') || 'name';
+    }
+    return 'name';
+  });
+  const [filterValue, setFilterValue] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('filterValue') || '';
+    }
+    return '';
+  });
+
+
   useEffect(() => {
-    setHasMounted(true);
-    const storedType = sessionStorage.getItem('productFilterType') as 'name' | 'price' | 'stock' | '';
-    const storedValue = sessionStorage.getItem('productFilterValue') || '';
-    setFilterType(storedType || '');
-    setFilterValue(storedValue || '');
-  }, []);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('activeFilter', activeFilter);
+    }
+  }, [activeFilter]);
 
-  // Save filters to sessionStorage
-  useEffect(() => {
-    if (hasMounted) sessionStorage.setItem('productFilterType', filterType);
-  }, [filterType, hasMounted]);
 
   useEffect(() => {
-    if (hasMounted) sessionStorage.setItem('productFilterValue', filterValue);
-  }, [filterValue, hasMounted]);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('filterValue', filterValue);
+    }
+  }, [filterValue]);
 
-  const fetchProducts = async () => {
+  // Fetch products
+  const fetchProducts = async (filterVal = filterValue) => {
     try {
       setLoading(true);
-      let url = 'http://localhost:3000/products';
-      if (filterType && filterValue) {
-        url += `?${filterType}=${filterValue}`;
-      }
-      const res = await fetch(url, {
+
+      const queryParams = new URLSearchParams();
+      if (filterVal) queryParams.append(activeFilter, filterVal);
+
+      const res = await fetch(`http://localhost:3000/products?${queryParams.toString()}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       const data = await res.json();
       setProducts(data);
-    } catch (err) {
-      console.error('Error fetching products', err);
+    } catch (error) {
+      console.error('Error fetching products:', error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (hasMounted) fetchProducts();
-  }, [hasMounted]);
-
-  const clearFilters = () => {
-    setFilterType('');
-    setFilterValue('');
-    sessionStorage.removeItem('productFilterType');
-    sessionStorage.removeItem('productFilterValue');
     fetchProducts();
+  }, []);
+
+  const resetForm = () => {
+    setEditingProductId(null);
+    setName('');
+    setPrice('');
+    setStock('');
+    setExistingImages([]);
+    setImagesToDelete([]);
+    setNewImages([]);
   };
+
 
   const handleEdit = (product: Product) => {
     setEditingProductId(product.id);
-    setEditName(product.name);
-    setEditPrice(product.price.toString());
-    setEditStock(product.stock.toString());
-    setExistingImages(product.images || (product.image ? [product.image] : []));
+    setName(product.name);
+    setPrice(product.price.toString());
+    setStock(product.stock.toString());
+    setExistingImages(product.images || []);
     setImagesToDelete([]);
-    setEditFiles([]);
+    setNewImages([]);
   };
 
-  const resetEdit = () => {
-    setEditingProductId(null);
-    setEditName('');
-    setEditPrice('');
-    setEditStock('');
-    setEditFiles([]);
-    setExistingImages([]);
-    setImagesToDelete([]);
+
+  const handleRemoveExistingImage = (img: string) => {
+    setExistingImages(existingImages.filter((i) => i !== img));
+    setImagesToDelete([...imagesToDelete, img]);
   };
 
-  const handleSaveEdit = async () => {
-    if (!editingProductId) return;
+  const handleRemoveNewImage = (idx: number) => {
+    const updated = [...newImages];
+    updated.splice(idx, 1);
+    setNewImages(updated);
+  };
 
+  const handleAddNewImages = (files: FileList | null) => {
+    if (!files) return;
+    setNewImages([...newImages, ...Array.from(files)]);
+  };
+
+
+  const handleSubmit = async () => {
     try {
-      // Update basic product info
-      await fetch(`http://localhost:3000/products/${editingProductId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ name: editName, price: Number(editPrice), stock: Number(editStock) }),
-      });
-
-      // Update images if necessary
-      if (editFiles.length > 0 || imagesToDelete.length > 0) {
-        const formData = new FormData();
-        const imagesToKeep = existingImages.filter(img => !imagesToDelete.includes(img));
-        formData.append('existingImages', JSON.stringify(imagesToKeep));
-        editFiles.forEach(file => formData.append('images', file));
-
-        await fetch(`http://localhost:3000/products/${editingProductId}/images`, {
+      if (editingProductId) {
+        await fetch(`http://localhost:3000/products/${editingProductId}`, {
           method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({
+            name,
+            price: Number(price),
+            stock: Number(stock),
+          }),
+        });
+
+        if (newImages.length > 0 || imagesToDelete.length > 0) {
+          const formData = new FormData();
+          formData.append('existingImages', JSON.stringify(existingImages));
+          formData.append('imagesToDelete', JSON.stringify(imagesToDelete));
+          newImages.forEach((file) => formData.append('images', file));
+
+          const imgRes = await fetch(
+            `http://localhost:3000/products/${editingProductId}/images`,
+            {
+              method: 'PUT',
+              headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+              body: formData,
+            }
+          );
+
+          if (!imgRes.ok) {
+            alert('Product updated but image changes failed.');
+          }
+        }
+      } else {
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('price', price);
+        formData.append('stock', stock);
+        newImages.forEach((file) => formData.append('images', file));
+
+        const res = await fetch('http://localhost:3000/products/create-multi', {
+          method: 'POST',
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
           body: formData,
         });
+
+        if (!res.ok) throw new Error('Failed to create product');
       }
 
-      resetEdit();
+      resetForm();
       fetchProducts();
-    } catch (err) {
-      console.error('Error updating product', err);
+    } catch (error) {
+      console.error('Error saving product:', error);
     }
   };
 
   const handleDelete = async (id: number) => {
     try {
-      await fetch(`http://localhost:3000/products/${id}`, {
+      const res = await fetch(`http://localhost:3000/products/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
+      if (!res.ok) throw new Error('Failed to delete product');
       fetchProducts();
-    } catch (err) {
-      console.error('Error deleting product', err);
+    } catch (error) {
+      console.error('Error deleting product:', error);
     }
   };
 
-  if (!hasMounted) return null; // prevent SSR hydration errors
-
   const columns: GridColDef[] = [
-    { field: 'id', headerName: 'ID', width: 70 },
-    { field: 'name', headerName: 'Name', width: 150 },
-    { field: 'price', headerName: 'Price', width: 100 },
-    { field: 'stock', headerName: 'Stock', width: 100 },
+    { field: 'name', headerName: 'Name', flex: 1 },
+    { field: 'price', headerName: 'Price', flex: 1 },
+    { field: 'stock', headerName: 'Stock', flex: 1 },
     {
       field: 'images',
       headerName: 'Images',
-      width: 200,
-      renderCell: (params: GridRenderCellParams) => {
-        const imgs = params.value || (params.row.image ? [params.row.image] : []);
-        return (
-          <Box display="flex" gap={1} flexWrap="wrap">
-            {imgs.map((img: string, idx: number) => (
-              <img
-                key={idx}
-                src={`http://localhost:3000/uploads/products/${img}`}
-                alt={`product ${idx}`}
-                width={50}
-                height={50}
-                style={{ objectFit: 'cover', borderRadius: 4 }}
-              />
-            ))}
-          </Box>
-        );
-      },
+      flex: 2,
+      renderCell: (params: GridRenderCellParams) => (
+        <Box display="flex" gap={1} flexWrap="wrap">
+          {params.value.map((img: string, idx: number) => (
+            <img
+              key={idx}
+              src={`http://localhost:3000/uploads/products/${img}`}
+              alt={`img-${idx}`}
+              width={50}
+              height={50}
+              style={{ objectFit: 'cover', borderRadius: 4 }}
+            />
+          ))}
+        </Box>
+      ),
     },
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 150,
+      flex: 1,
       renderCell: (params: GridRenderCellParams) => (
         <Box display="flex" gap={1}>
           <IconButton color="primary" onClick={() => handleEdit(params.row as Product)}>
@@ -205,117 +253,175 @@ export default function ProductsPage() {
   ];
 
   return (
-    <Container sx={{ mt: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        Product Management
-      </Typography>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Container sx={{ mt: 6 }} className={poppins.className}>
+        <Typography variant="h5" fontWeight="bold" gutterBottom>
+          Product Management
+        </Typography>
 
-      {/* Filter */}
-      <Box display="flex" gap={2} alignItems="center" mb={2}>
-        <FormControl sx={{ minWidth: 150 }}>
-          <InputLabel>Filter By</InputLabel>
-          <Select
-            value={filterType}
-            label="Filter By"
-            onChange={(e) => setFilterType(e.target.value as 'name' | 'price' | 'stock' | '')}
-          >
-            <MenuItem value="">None</MenuItem>
-            <MenuItem value="name">Name</MenuItem>
-            <MenuItem value="price">Price</MenuItem>
-            <MenuItem value="stock">Stock</MenuItem>
-          </Select>
-        </FormControl>
-        <TextField
-          label="Filter Value"
-          value={filterValue}
-          onChange={(e) => setFilterValue(e.target.value)}
-          disabled={!filterType}
-        />
-        <Button variant="contained" onClick={fetchProducts}>Apply Filter</Button>
-        <Button variant="outlined" onClick={clearFilters}>Clear</Button>
-      </Box>
+        <Paper sx={{ p: 2, mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }} elevation={3}>
+          <FormControl sx={{ minWidth: 160 }}>
+            <InputLabel>Filter By</InputLabel>
+            <Select
+              value={activeFilter}
+              label="Filter By"
+              onChange={(e) => {
+                setActiveFilter(e.target.value as 'name' | 'price' | 'stock');
+                setFilterValue('');
+              }}
+              sx={{fontSize : '0.8rem'}}
+            >
+              <MenuItem value="name">Name</MenuItem>
+              <MenuItem value="price">Price</MenuItem>
+              <MenuItem value="stock">Stock</MenuItem>
+            </Select>
+          </FormControl>
 
-      {/* Edit Form */}
-      {editingProductId && (
-        <Box mb={2} p={2} border="1px solid #ccc" borderRadius={2}>
-          <Typography variant="h6">Edit Product</Typography>
-          <Box display="flex" gap={2} flexWrap="wrap" mt={1}>
-            <TextField label="Name" value={editName} onChange={(e) => setEditName(e.target.value)} />
-            <TextField label="Price" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} />
-            <TextField label="Stock" value={editStock} onChange={(e) => setEditStock(e.target.value)} />
+          <TextField
+            label={`Filter ${activeFilter}`}
+            value={filterValue}
+            type={activeFilter === 'name' ? 'text' : 'number'}
+            onChange={(e) => setFilterValue(e.target.value)}
+            sx={{fontSize : '0.8rem'}}
+          />
 
-            {/* Existing Images */}
-            {existingImages.length > 0 && (
-              <Box display="flex" gap={1} flexWrap="wrap" mt={1}>
-                {existingImages.map((img, idx) => (
-                  <Box key={idx} position="relative">
-                    <img
-                      src={`http://localhost:3000/uploads/products/${img}`}
-                      alt={img}
-                      width={50}
-                      height={50}
-                      style={{ objectFit: 'cover', borderRadius: 4 }}
-                    />
-                    <IconButton
-                      size="small"
-                      sx={{ position: 'absolute', top: -4, right: -4, backgroundColor: 'error.main', color: 'white' }}
-                      onClick={() => {
-                        setExistingImages(existingImages.filter(i => i !== img));
-                        setImagesToDelete([...imagesToDelete, img]);
-                      }}
-                    >
-                      <CloseIcon fontSize="inherit" />
-                    </IconButton>
-                  </Box>
-                ))}
-              </Box>
-            )}
-
-            {/* Add new images */}
-            <Button variant="outlined" component="label">
-              Add Images
-              <input type="file" hidden multiple accept="image/*" onChange={(e) => e.target.files && setEditFiles([...editFiles, ...Array.from(e.target.files)])} />
+          <Button
+              variant="contained"
+              onClick={() => fetchProducts(filterValue)}
+              sx={{ backgroundColor: '#f5a40eff', color: 'white', '&:hover': { backgroundColor: '#45A049' } }} 
+            >
+              Apply
             </Button>
 
-            {/* New Images Preview */}
-            {editFiles.length > 0 && (
-              <Box display="flex" gap={1} flexWrap="wrap" mt={1}>
-                {editFiles.map((file, idx) => (
-                  <Box key={idx} position="relative">
-                    <img src={URL.createObjectURL(file)} alt={file.name} width={50} height={50} style={{ objectFit: 'cover', borderRadius: 4 }} />
-                    <IconButton
-                      size="small"
-                      sx={{ position: 'absolute', top: -4, right: -4, backgroundColor: 'error.main', color: 'white' }}
-                      onClick={() => setEditFiles(editFiles.filter((_, i) => i !== idx))}
-                    >
-                      <CloseIcon fontSize="inherit" />
-                    </IconButton>
-                  </Box>
-                ))}
-              </Box>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setFilterValue('');
+              fetchProducts('');
+            }}
+            sx={{ borderColor: '#f44336', color: '#f44336', '&:hover': { borderColor: '#d32f2f', color: '#d32f2f' } }}
+          >
+            Reset
+          </Button>
+        </Paper>
+
+       
+        <Paper sx={{ p: 3, mb: 4 }} elevation={3}>
+          <Typography variant="h6" fontWeight="medium" mb={2}>
+            {editingProductId ? 'Edit Product' : 'Create New Product'}
+          </Typography>
+
+          <Box display="flex" gap={2} flexWrap="wrap" mb={2}>
+            <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} />
+            <TextField label="Price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} />
+            <TextField label="Stock" type="number" value={stock} onChange={(e) => setStock(e.target.value)} />
+          </Box>
+
+          {editingProductId && existingImages.length > 0 && (
+            <Box display="flex" gap={1} flexWrap="wrap" mb={2}>
+              {existingImages.map((img, idx) => (
+                <Box key={idx} position="relative">
+                  <img
+                    src={`http://localhost:3000/uploads/products/${img}`}
+                    alt={`img-${idx}`}
+                    width={60}
+                    height={60}
+                    style={{ objectFit: 'cover', borderRadius: 8 }}
+                  />
+                  <IconButton
+                    size="small"
+                    sx={{
+                      position: 'absolute',
+                      top: -5,
+                      right: -5,
+                      backgroundColor: 'error.main',
+                      color: 'white',
+                      '&:hover': { backgroundColor: 'error.dark' },
+                    }}
+                    onClick={() => handleRemoveExistingImage(img)}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              ))}
+            </Box>
+          )}
+
+          {newImages.length > 0 && (
+            <Box display="flex" gap={1} flexWrap="wrap" mb={2}>
+              {newImages.map((file, idx) => (
+                <Box key={idx} position="relative">
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt={file.name}
+                    width={60}
+                    height={60}
+                    style={{ objectFit: 'cover', borderRadius: 8 }}
+                  />
+                  <IconButton
+                    size="small"
+                    sx={{
+                      position: 'absolute',
+                      top: -5,
+                      right: -5,
+                      backgroundColor: 'error.main',
+                      color: 'white',
+                      '&:hover': { backgroundColor: 'error.dark' },
+                    }}
+                    onClick={() => handleRemoveNewImage(idx)}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              ))}
+            </Box>
+          )}
+
+          <Box display="flex" gap={2} flexWrap="wrap">
+            <Button
+                variant="outlined"
+                component="label"
+                sx={{
+                  borderColor: '#1976d2',
+                  color: '#1976d2',
+                  '&:hover': {
+                    borderColor: '#115293',
+                    backgroundColor: 'rgba(25, 118, 210, 0.04)',
+                  },
+                }}
+              >
+                Select Images
+                <input
+                  type="file"
+                  hidden
+                  multiple
+                  accept="image/*"
+                  onChange={(e) => handleAddNewImages(e.target.files)}
+                />
+            </Button>
+
+            <Button
+              variant="contained"
+              onClick={handleSubmit}
+              sx={{ backgroundColor: '#f5a40eff', color: 'white', '&:hover': { backgroundColor: '#45A049' } }} 
+            >
+              {editingProductId ? 'Save Changes' : 'Create Product'}
+            </Button>
+
+            {editingProductId && (
+              <Button variant="outlined" color="secondary" onClick={resetForm}>
+                Cancel Edit
+              </Button>
             )}
           </Box>
-          <Box mt={2}>
-            <Button variant="contained" onClick={handleSaveEdit}>Save</Button>
-            <Button variant="outlined" onClick={resetEdit} sx={{ ml: 1 }}>Cancel</Button>
-          </Box>
-        </Box>
-      )}
+        </Paper>
 
-      {/* DataGrid */}
-      <div style={{ height: 500, width: '100%' }}>
-  <DataGrid
-    rows={products}
-    columns={columns}
-    loading={loading}
-    getRowId={(row) => row.id}
-    pagination
-    paginationMode="client" // client-side pagination
-    pageSizeOptions={[5, 10, 20]}
-    paginationModel={paginationModel}
-    onPaginationModelChange={setPaginationModel}
-  />
-</div>
-    </Container>
+
+        <Paper sx={{ height: 500, width: '100%', p: 2 }} elevation={3}>
+          <DataGrid rows={products} columns={columns} getRowId={(row) => row.id} loading={loading} />
+        </Paper>
+      </Container>
+    </ThemeProvider>
   );
 }
