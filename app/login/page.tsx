@@ -4,6 +4,7 @@ import { Container, TextField, Button, Typography, Box, IconButton, InputAdornme
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { Poppins } from 'next/font/google';
+import toast, { Toaster } from 'react-hot-toast';
 
 const poppins = Poppins({ weight: ['400','500','600','700'], subsets: ['latin'] });
 
@@ -17,35 +18,51 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    if (!email || !password) {
+      toast.error("Please enter email and password");
+      return;
+    }
+
+    setLoading(true);
     try {
       const response = await fetch("http://localhost:3000/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
+
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem("token", data.access_token); 
-        alert("Login Successful!");
-        window.location.href = "/products";
+        // Login successful
+        localStorage.setItem("token", data.access_token);
+        toast.success("Login Successful!");
+        setTimeout(() => {
+          window.location.href = "/products"; // Navigate to products page
+        }, 1000);
       } else {
-        alert(data.message || "Login failed");
+        // Invalid credentials
+        toast.error(data.message || "Invalid email or password");
       }
     } catch (error) {
       console.error(error);
-      alert("Something went wrong");
+      toast.error("Something went wrong. Try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
+      <Toaster position="top-right" />
       <Container maxWidth="sm" className={poppins.className}>
         <Box sx={{ mt: 8, display: "flex", flexDirection: "column", alignItems: "center" }}>
           <Typography variant="h4" gutterBottom>Login</Typography>
+
           <TextField
             label="Email"
             variant="outlined"
@@ -54,6 +71,7 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
+
           <TextField
             label="Password"
             variant="outlined"
@@ -72,9 +90,18 @@ export default function LoginPage() {
               )
             }}
           />
-          <Button variant="contained" color="primary" fullWidth sx={{ mt: 2 }} onClick={handleLogin}>
-            Login
+
+          <Button
+            variant="contained"
+            color="primary"
+            fullWidth
+            sx={{ mt: 2 }}
+            onClick={handleLogin}
+            disabled={loading}
+          >
+            {loading ? "Logging in..." : "Login"}
           </Button>
+
           <Typography variant="body2" sx={{ mt: 2 }}>
             Don’t have an account? <a href="/register">Register</a>
           </Typography>
