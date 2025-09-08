@@ -1,58 +1,56 @@
 'use client';
-import React, { useState } from "react";
-import { Container, TextField, Button, Typography, Box, IconButton, InputAdornment, CssBaseline } from '@mui/material';
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  Container, TextField, Button, Typography, Box, IconButton, InputAdornment, CssBaseline
+} from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-
 import toast, { Toaster } from 'react-hot-toast';
 import { Poppins } from 'next/font/google';
-const poppins = Poppins({ weight: ['400','500','600','700'], subsets: ['latin'] });
+import { AppDispatch, RootState } from '../store/store';
+import { login, logout } from '../store/authSlice';
+import { useRouter } from 'next/navigation';
 
-const theme = createTheme({
-  typography: {
-    fontFamily: `'${poppins.style.fontFamily}', sans-serif`,
-  },
-});
+const poppins = Poppins({ weight: ['400','500','600','700'], subsets: ['latin'] });
+const theme = createTheme({ typography: { fontFamily: `'${poppins.style.fontFamily}', sans-serif` } });
 
 export default function LoginPage() {
+  const dispatch = useDispatch<AppDispatch>();
+  const router = useRouter();
+  const { token, loading, error } = useSelector((state: RootState) => state.auth);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loginAttempted, setLoginAttempted] = useState(false);
 
-  const handleLogin = async () => {
+  // Handle successful login
+  useEffect(() => {
+    if (token && loginAttempted) {
+      toast.success("Login Successful!");
+      router.replace("/products");
+      setLoginAttempted(false); // reset after redirect
+    }
+  }, [token, loginAttempted, router]);
+
+  // Handle login error
+  useEffect(() => {
+    if (error && loginAttempted) {
+      toast.error(error);
+      // Clear token in case something is still set
+      dispatch(logout());
+      setLoginAttempted(false); // reset after showing error
+    }
+  }, [error, loginAttempted, dispatch]);
+
+  const handleLogin = () => {
     if (!email || !password) {
       toast.error("Please enter email and password");
       return;
     }
-
-    setLoading(true);
-    try {
-      const response = await fetch("http://localhost:3000/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        // Login successful
-        localStorage.setItem("token", data.access_token);
-        toast.success("Login Successful!");
-        setTimeout(() => {
-          window.location.href = "/products"; 
-        }, 1000);
-      } else {
-        // Invalid credentials
-        toast.error(data.message || "Invalid email or password");
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("Something went wrong. Try again.");
-    } finally {
-      setLoading(false);
-    }
+    setLoginAttempted(true); // mark that user attempted login
+    dispatch(login({ email, password }));
   };
 
   return (
@@ -69,7 +67,7 @@ export default function LoginPage() {
             fullWidth
             margin="normal"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={e => setEmail(e.target.value)}
           />
 
           <TextField
@@ -79,7 +77,7 @@ export default function LoginPage() {
             margin="normal"
             type={showPassword ? "text" : "password"}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={e => setPassword(e.target.value)}
             InputProps={{
               endAdornment: password && (
                 <InputAdornment position="end">

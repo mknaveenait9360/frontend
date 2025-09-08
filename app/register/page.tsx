@@ -1,62 +1,71 @@
 'use client';
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
-import { Container, TextField, Button, Box, Typography, InputAdornment, IconButton, createTheme, ThemeProvider, CssBaseline } from "@mui/material";
+import {
+  Container,
+  TextField,
+  Button,
+  Box,
+  Typography,
+  InputAdornment,
+  IconButton,
+  createTheme,
+  ThemeProvider,
+  CssBaseline
+} from "@mui/material";
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { Poppins } from 'next/font/google';
+import toast, { Toaster } from 'react-hot-toast';
+
+import { AppDispatch, RootState } from '../store/store';
+import { registerUser } from '../store/authSlice';
 
 const poppins = Poppins({ weight: ['400','500','600','700'], subsets: ['latin'] });
+
 const theme = createTheme({
-    typography : {
-         fontFamily: `${poppins.style.fontFamily}, sans-serif`,
-    },
-})
+  typography: {
+    fontFamily: `${poppins.style.fontFamily}, sans-serif`,
+  },
+});
 
 export default function RegisterPage() {
+  const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
 
-  const [username, setUsername] = useState(''); 
+  const { loading, error } = useSelector((state: RootState) => state.auth);
+
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false); 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+    }
+  }, [error]);
 
   const handleRegister = async () => {
-    setLoading(true);
-    setError('');
+    if (!username || !email || !password) {
+      toast.error("All fields are required");
+      return;
+    }
 
-    try {
-      const response = await fetch("http://localhost:3000/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, email, password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-   
-        router.push('/login');
-      } else {
-        setError(data.message || "Registration failed");
-      }
-    } catch (err: any) {
-      console.error(err);
-      setError("Something went wrong");
-    } finally {
-      setLoading(false);
+    const resultAction = await dispatch(registerUser({ username, email, password }));
+    if (registerUser.fulfilled.match(resultAction)) {
+      toast.success("Registration successful!");
+      router.push('/login');
     }
   };
 
   return (
     <ThemeProvider theme={theme}>
-      <CssBaseline/>
-      <Container maxWidth="sm">
+      <CssBaseline />
+      <Toaster position="top-right" />
+      <Container maxWidth="sm" className={poppins.className}>
         <Box sx={{ mt: 8, display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <Typography variant="h4" gutterBottom>
-            Register
-          </Typography>
+          <Typography variant="h4" gutterBottom>Register</Typography>
 
           <TextField
             label="Username"
@@ -64,7 +73,7 @@ export default function RegisterPage() {
             fullWidth
             margin="normal"
             value={username}
-            onChange={(e) => setUsername(e.target.value)} 
+            onChange={(e) => setUsername(e.target.value)}
           />
 
           <TextField
@@ -97,12 +106,6 @@ export default function RegisterPage() {
               )
             }}
           />
-
-          {error && (
-            <Typography color="error" variant="body2" sx={{ mt: 1 }}>
-              {error}
-            </Typography>
-          )}
 
           <Button
             variant="contained"
