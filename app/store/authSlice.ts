@@ -18,7 +18,7 @@ interface RegisterArgs {
   password: string;
 }
 
-// Async thunk for login
+
 export const login = createAsyncThunk<string, LoginArgs, { rejectValue: string }>(
   'auth/login',
   async ({ email, password }, { rejectWithValue }) => {
@@ -32,7 +32,7 @@ export const login = createAsyncThunk<string, LoginArgs, { rejectValue: string }
       const data = await response.json();
 
       if (!response.ok || !data.access_token) {
-        // Clear any existing token if login fails
+ 
         if (typeof window !== 'undefined') localStorage.removeItem('token');
         return rejectWithValue(data.message || 'Invalid email or password');
       }
@@ -48,7 +48,6 @@ export const login = createAsyncThunk<string, LoginArgs, { rejectValue: string }
   }
 );
 
-// Async thunk for registration
 export const registerUser = createAsyncThunk<void, RegisterArgs, { rejectValue: string }>(
   'auth/registerUser',
   async ({ username, email, password }, { rejectWithValue }) => {
@@ -72,7 +71,7 @@ export const registerUser = createAsyncThunk<void, RegisterArgs, { rejectValue: 
   }
 );
 
-// Initial state: do not read localStorage at load; start with null
+
 const initialState: AuthState = {
   token: null,
   loading: false,
@@ -106,7 +105,7 @@ const authSlice = createSlice({
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
-        state.token = null; // ensure invalid login does not keep token
+        state.token = null; 
         state.error = action.payload || 'Invalid email or password';
       });
 

@@ -30,17 +30,17 @@ export default function LoginPage() {
     if (token && loginAttempted) {
       toast.success("Login Successful!");
       router.replace("/products");
-      setLoginAttempted(false); // reset after redirect
+      setLoginAttempted(false); 
     }
   }, [token, loginAttempted, router]);
 
-  // Handle login error
+
   useEffect(() => {
     if (error && loginAttempted) {
       toast.error(error);
-      // Clear token in case something is still set
+     
       dispatch(logout());
-      setLoginAttempted(false); // reset after showing error
+      setLoginAttempted(false); 
     }
   }, [error, loginAttempted, dispatch]);
 
@@ -49,7 +49,7 @@ export default function LoginPage() {
       toast.error("Please enter email and password");
       return;
     }
-    setLoginAttempted(true); // mark that user attempted login
+    setLoginAttempted(true);
     dispatch(login({ email, password }));
   };
 
@@ -63,6 +63,7 @@ export default function LoginPage() {
 
           <TextField
             label="Email"
+            name="email"
             variant="outlined"
             fullWidth
             margin="normal"
@@ -72,6 +73,7 @@ export default function LoginPage() {
 
           <TextField
             label="Password"
+            name="password"
             variant="outlined"
             fullWidth
             margin="normal"

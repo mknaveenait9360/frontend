@@ -197,10 +197,15 @@ export default function ProductsPage() {
     },
   ];
 
-  // --- Do not render until mounted ---
-  if (!mounted) return null;
+
+  {!mounted && (
+  <Typography variant="h6" align="center" sx={{ mt: 4 }}>
+    Loading...
+  </Typography>
+)}
 
   return (
+    
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Container sx={{ mt: 6 }} className={poppins.className}>
@@ -213,7 +218,9 @@ export default function ProductsPage() {
             <Select
               value={activeFilter}
               label="Filter By"
+              
               onChange={(e) => { setActiveFilter(e.target.value as 'name'|'price'|'stock'); setFilterValue(''); }}
+              data-testid="filter-select" 
             >
               <MenuItem value="name">Name</MenuItem>
               <MenuItem value="price">Price</MenuItem>
@@ -226,6 +233,7 @@ export default function ProductsPage() {
             value={filterValue}
             type={activeFilter === 'name' ? 'text' : 'number'}
             onChange={(e) => setFilterValue(e.target.value)}
+            data-testid="filter-input"
           />
 
           <Button variant="contained" onClick={() => loadProducts()} sx={{ backgroundColor: '#f5a40eff', color: 'white', '&:hover': { backgroundColor: '#45A049' } }}>Apply</Button>
@@ -237,9 +245,9 @@ export default function ProductsPage() {
           <Typography variant="h6" fontWeight="medium" mb={2}>{editingProductId !== null ? 'Edit Product' : 'Create New Product'}</Typography>
 
           <Box display="flex" gap={2} flexWrap="wrap" mb={2}>
-            <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} />
-            <TextField label="Price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} />
-            <TextField label="Stock" type="number" value={stock} onChange={(e) => setStock(e.target.value)} />
+            <TextField label="Name" value={name} onChange={(e) => setName(e.target.value) } data-testid="product-name"/>
+            <TextField label="Price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} data-testid="product-price" />
+            <TextField label="Stock" type="number" value={stock} onChange={(e) => setStock(e.target.value)} data-testid="product-stock"/>
           </Box>
 
           {editingProductId !== null && existingImages.length > 0 && (
@@ -274,8 +282,8 @@ export default function ProductsPage() {
               <input type="file" hidden multiple accept="image/*" onChange={(e) => handleAddNewImages(e.target.files)} />
             </Button>
 
-            <Button variant="contained" onClick={handleSubmit} sx={{ backgroundColor:'#f5a40eff', color:'white', '&:hover':{backgroundColor:'#45A049'} }}>
-              {editingProductId !== null ? 'Save Changes' : 'Create Product'}
+            <Button variant="contained" data-testid="create-product"   onClick={handleSubmit} sx={{ backgroundColor:'#f5a40eff', color:'white', '&:hover':{backgroundColor:'#45A049'} }}>
+              {editingProductId !== null ? 'Save Changes' : 'Create Product'} 
             </Button>
 
             {editingProductId !== null && <Button variant="outlined" color="secondary" onClick={resetForm}>Cancel Edit</Button>}

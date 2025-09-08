@@ -69,6 +69,7 @@ export default function RegisterPage() {
 
           <TextField
             label="Username"
+            name="username"
             variant="outlined"
             fullWidth
             margin="normal"
@@ -78,6 +79,7 @@ export default function RegisterPage() {
 
           <TextField
             label="Email"
+            name="email"
             variant="outlined"
             fullWidth
             margin="normal"
@@ -87,6 +89,7 @@ export default function RegisterPage() {
 
           <TextField
             label="Password"
+            name="password"
             type={showPassword ? "text" : "password"}
             variant="outlined"
             fullWidth

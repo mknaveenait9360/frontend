@@ -1,4 +1,3 @@
-// Inside ClientProvider.tsx
 'use client';
 
 import { Provider, useDispatch } from 'react-redux';
